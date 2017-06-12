@@ -3,7 +3,8 @@ from setuptools import setup, find_packages
 
 setup(
     name='cfw',
-    version='0.1.0',
+    version='0.1.1',
+    url='https://github.com/zinic/python-cfw',
     description='Python Command Line Interface Library',
 
     author='John Hopper',

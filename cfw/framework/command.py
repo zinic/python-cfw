@@ -94,7 +94,7 @@ class CommandTrie(object):
                 matched_path.append(path_part)
 
                 # Check to see if the next part has a matching command
-                cursor = cursor.descendant(path_part)
+                cursor = cursor.get(path_part)
 
                 # If there's no matching command at this part of the path, return where we
                 # left off in the path
@@ -116,7 +116,7 @@ class CommandTrie(object):
                 # Recreate the path string for insertion
                 path_str = None
                 if len(last_path) > 1:
-                    path_str = ' '.join(last_path[:len(last_path) - 2])
+                    path_str = ' '.join(last_path[:len(last_path) - 1])
 
                 # Create a command stub - this may be overwritten by further, more specific inserts
                 self.insert(command_stub(missing_cmd, path=path_str))

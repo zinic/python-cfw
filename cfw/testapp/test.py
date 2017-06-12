@@ -40,6 +40,12 @@ def second():
     pass
 
 
+# Testcase for deeply nested commands that expect their path to be simple command aggregators
+@cfw.command(path='command path')
+def nested():
+    pass
+
+
 def main():
     cfw.dispatch('cfw.testapp')
 
