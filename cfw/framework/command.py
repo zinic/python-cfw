@@ -30,7 +30,8 @@ class CommandTrie(object):
         # calls the program we're processing arguments for.
         self.cli_call_name = cli_call_name
 
-        self._root_cmd = CommandNode(command_stub(self.cli_call_name), is_root=True)
+        # Root commands are nameless
+        self._root_cmd = CommandNode(command_stub(''), is_root=True)
 
     def dispatch(self, argv=None):
         """

@@ -46,3 +46,36 @@ def main():
 if __name__ == '__main__':
     main()
 ```
+
+### Example Output
+
+Calling the root command reveals helpful output:
+
+```text
+Usage: cfw/testapp/test.py
+
+Available Commands:
+  first                       Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                              Donec auctor turpis a ligula sollicitudin pellentesque.
+                              Maecenas quis feugiat neque. Vestibulum eu sem id augue
+                              iaculis...
+  test
+
+This command has no arguments specified.
+```
+
+Calling further subcommands will allow you to explore the CLI:
+
+```text
+Usage: cfw/testapp/test.py test
+
+Available Commands:
+  second                      A nested command that lets you test nested paths.
+  
+This command has no arguments specified.
+```
+
+
+### License
+
+This software is made available to you under the [MIT License](LICENSE).
