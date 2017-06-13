@@ -25,13 +25,13 @@ def command_stub(name, path=None, help=''):
 
 
 class CommandTrie(object):
-    def __init__(self, cli_call_name):
+    def __init__(self, cli_call_name, help=None):
         # This name is passed to us so that our output is accurate according to what the user typed in or
         # calls the program we're processing arguments for.
         self.cli_call_name = cli_call_name
 
         # Root commands are nameless
-        self._root_cmd = CommandNode(command_stub(''), is_root=True)
+        self._root_cmd = CommandNode(command_stub('', help=help), is_root=True)
 
     def dispatch(self, argv=None):
         """

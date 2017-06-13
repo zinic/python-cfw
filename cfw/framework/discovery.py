@@ -34,15 +34,15 @@ def command(*args, **kwargs):
     return _factory if invoked is True else _factory(func)
 
 
-def dispatch(target_module, argv=None, verbose=False):
+def dispatch(target_module, argv=None, verbose=False, help=None):
     if argv is None:
         argv = sys.argv
 
-    trie = scan(argv[0], target_module, verbose)
+    trie = scan(argv[0], target_module, verbose, help)
     trie.dispatch(argv)
 
 
-def scan(cli_call_name, target_module, verbose):
+def scan(cli_call_name, target_module, verbose, help):
     """
     This crawls all of the modules below us and imports them recursively
     :return:
@@ -89,7 +89,7 @@ def scan(cli_call_name, target_module, verbose):
 
     # Build our command trie with collected components and perform rudimentary
     # dependency resolution for command paths
-    command_trie = CommandTrie(cli_call_name)
+    command_trie = CommandTrie(cli_call_name, help=help)
     while len(command_components) > 0:
         delete_list = list()
         for idx in range(0, len(command_components)):

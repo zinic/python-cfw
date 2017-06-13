@@ -47,7 +47,7 @@ def nested():
 
 
 def main():
-    cfw.dispatch('cfw.testapp')
+    cfw.dispatch('cfw.testapp', help='This is a test CLI for CFW')
 
 
 if __name__ == '__main__':
