@@ -246,6 +246,11 @@ class CommandWrapper(object):
             if arg_def.default is None and isinstance(arg_def, Flag):
                 arg_def.default = False
 
+        # Run sanity checks now that the argument definitions have been filled out with the remainder of
+        # important details
+        for arg_def in self.arg_defs:
+            arg_def.check()
+
     def print_help(self):
         # If there aren't any args, tell the user
         if len(self.arg_defs) == 0:
@@ -255,12 +260,7 @@ class CommandWrapper(object):
         # Try to print out detailed argument help
         print('Arguments:')
         for arg_def in self.arg_defs:
-            first_column = '  {}'.format(arg_def.short_form)
-
-            if arg_def.long_form is not None:
-                first_column += ', {}'.format(arg_def.long_form)
-
-            print(format_two_column_output(first_column, arg_def.help))
+            print(format_two_column_output(arg_def.forms(), arg_def.help))
 
     def _prepare_kwargs_dict(self):
         kwargs = dict()
@@ -315,7 +315,7 @@ class CommandWrapper(object):
                 print('Missing required argument: {}\n'.format(arg_def.short_form))
                 return _PRINT_HELP
 
-        # Hand off the args to the real reciever
+        # Hand off the args to the real receiver
         result = self.func(**kwargs)
         if result is _PRINT_HELP:
             return result
