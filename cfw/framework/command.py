@@ -240,11 +240,13 @@ class CommandWrapper(object):
             arg_def.keyword = next(arg_kw_iter)
 
             # Map the default if any
-            arg_def.default = next(arg_default_iter, None)
+            next_default = next(arg_default_iter, None)
+            if next_default is not None:
+                arg_def.set_default(next_default)
 
             # If there's no default but the argument is a flag, default to False
-            if arg_def.default is None and isinstance(arg_def, Flag):
-                arg_def.default = False
+            if arg_def.has_default is False and isinstance(arg_def, Flag):
+                arg_def.set_default(False)
 
         # Run sanity checks now that the argument definitions have been filled out with the remainder of
         # important details
@@ -311,7 +313,7 @@ class CommandWrapper(object):
 
         # Last but not least, we test to make sure all required arguments are provided
         for arg_def in self.arg_defs:
-            if arg_def.default is None and kwargs.get(arg_def.keyword) is None:
+            if arg_def.has_default is True and kwargs.get(arg_def.keyword) is None:
                 print('Missing required argument: {}\n'.format(arg_def.short_form))
                 return _PRINT_HELP
 

@@ -9,6 +9,11 @@ class ArgumentDefinition(object):
         self.keyword = None
         self.required = True
         self.default = None
+        self.has_default = False
+
+    def set_default(self, value):
+        self.default = value
+        self.has_default = True
 
     def check(self):
         if self.short_form is None and self.long_form is None:
