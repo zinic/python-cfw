@@ -13,8 +13,10 @@ import cfw
 @cfw.command(arguments=[
     cfw.Flag('-v', '--verbose', help='Run with more output.'),
     cfw.Argument('-r', '--default', help='This is a default argument.'),
+    cfw.PositionalArgument(name='positional_arg', help='This is a required positional argument.'),
+    cfw.Argument('-o', '--optional', help='This is an optional argument.')
 ])
-def first(verbose, required):
+def first(verbose, required, positional, optional=None):
     """
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec auctor turpis a ligula sollicitudin pellentesque.
     Maecenas quis feugiat neque. Vestibulum eu sem id augue iaculis elementum eu vel dolor. Suspendisse aliquet orci

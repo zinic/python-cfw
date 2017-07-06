@@ -2,7 +2,8 @@ from .errors import CommandArgumentError
 
 
 class ArgumentDefinition(object):
-    def __init__(self, short_form=None, long_form=None, help=None):
+    def __init__(self, name=None, short_form=None, long_form=None, help=None):
+        self.name = name
         self.short_form = short_form
         self.long_form = long_form
         self.help = help
@@ -10,6 +11,10 @@ class ArgumentDefinition(object):
         self.required = True
         self.default = None
         self.has_default = False
+
+    @property
+    def positional(self):
+        return False
 
     def set_default(self, value):
         self.default = value
@@ -47,10 +52,31 @@ class ArgumentDefinition(object):
     def gather(self, argv, idx):
         raise NotImplementedError()
 
+    def __str__(self):
+        if self.name is not None:
+            return self.name
+        return self.forms()
+
 
 class Argument(ArgumentDefinition):
     def gather(self, argv, idx):
         idx += 1
+        return idx, argv[idx]
+
+
+class PositionalArgument(ArgumentDefinition):
+    @property
+    def positional(self):
+        return True
+
+    def check(self):
+        if self.name is None:
+            raise CommandArgumentError('Positional arguments require a name.')
+
+    def matches(self, arg):
+        return True
+
+    def gather(self, argv, idx):
         return idx, argv[idx]
 
 

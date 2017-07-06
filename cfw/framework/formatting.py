@@ -10,8 +10,12 @@ _MAX_LINE_LEN = 88
 _MAX_SECOND_COLUMN_LINES = 4
 
 
-def _sanitize(input):
-    return input.strip().replace('\n', ' ')
+def _sanitize(input_value):
+    sanitize_me = input_value
+    if not isinstance(input_value, str):
+        sanitize_me = str(input_value)
+
+    return sanitize_me.strip().replace('\n', ' ')
 
 
 def _sanitize_split(input):

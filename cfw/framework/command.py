@@ -145,6 +145,21 @@ class CommandNode(object):
         cmd_path = '{} {}'.format(' '.join(self.cmd.path), self.name) if self.cmd.depth > 0 else self.name
         cmd_spec = 'Usage: {} {}'.format(cli_call_name, cmd_path)
 
+        # Building an arg spec string is important for things like positional arguments where the order
+        # of the argument determines where it is slotted in the target function
+        cmd_arg_spec = ''
+        for arg_def in self.cmd.arg_defs:
+            if arg_def.positional is True:
+                # If this isn't the first positional arg added to the cmd_arg_spec then we need as space
+                if len(cmd_arg_spec) > 0:
+                    cmd_arg_spec += ' '
+
+                cmd_arg_spec += '<{}>'.format(arg_def.name)
+
+        # If there were positional arguments we need to append the cmd_arg_spec to the cmd_spec for output
+        if len(cmd_arg_spec) > 0:
+            cmd_spec += ' {}'.format(cmd_arg_spec)
+
         # Usage line first with the name we were called by on the CLI
         print('{}\n'.format(cmd_spec))
 
@@ -237,7 +252,11 @@ class CommandWrapper(object):
                 raise CommandArgumentError('Arguments may not carry the signature of: {}'.format(_HELP_ARGUMENTS))
 
             # Assign the matching function keyword
-            arg_def.keyword = next(arg_kw_iter)
+            try:
+                arg_def.keyword = next(arg_kw_iter)
+            except StopIteration:
+                raise CommandArgumentError('CLI argument {} defined but function {} has no answering argument.'.format(
+                    arg_def, self.func.__name__)) from None
 
             # Map the default if any
             next_default = next(arg_default_iter, None)
@@ -262,7 +281,7 @@ class CommandWrapper(object):
         # Try to print out detailed argument help
         print('Arguments:')
         for arg_def in self.arg_defs:
-            print(format_two_column_output(arg_def.forms(), arg_def.help))
+            print(format_two_column_output(arg_def, arg_def.help))
 
     def _prepare_kwargs_dict(self):
         kwargs = dict()
