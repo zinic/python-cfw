@@ -2,10 +2,10 @@ from .errors import CommandArgumentError
 
 
 class ArgumentDefinition(object):
-    def __init__(self, name=None, short_form=None, long_form=None, help=None):
-        self.name = name
+    def __init__(self, short_form=None, long_form=None, name=None, help=None):
         self.short_form = short_form
         self.long_form = long_form
+        self.name = name
         self.help = help
         self.keyword = None
         self.required = True

@@ -6,7 +6,7 @@ import inspect
 import sys
 
 from .formatting import format_two_column_output, format_one_column_output
-from .arguments import Flag
+from .arguments import Flag, PositionalArgument, Argument, ListArgument, WildcardArgument
 from .errors import CommandError, CommandArgumentError
 from .util import GREEDY_WHITESPACE_RE
 
@@ -212,6 +212,10 @@ class CommandWrapper(object):
         self.help = help
         self.arg_defs = arguments
 
+        # Track different argument types to make searching more deterministic
+        self.positional_arg_defs = list()
+        self.non_positional_arg_defs = list()
+
         self._func_argspec = inspect.getfullargspec(self.func)
 
         if self.name is None:
@@ -267,6 +271,12 @@ class CommandWrapper(object):
             if arg_def.has_default is False and isinstance(arg_def, Flag):
                 arg_def.set_default(False)
 
+            # Assign the arg def to the right place
+            if isinstance(arg_def, PositionalArgument):
+                self.positional_arg_defs.insert(0, arg_def)
+            else:
+                self.non_positional_arg_defs.insert(0, arg_def)
+
         # Run sanity checks now that the argument definitions have been filled out with the remainder of
         # important details
         for arg_def in self.arg_defs:
@@ -298,6 +308,24 @@ class CommandWrapper(object):
     def depth(self):
         return len(self.path)
 
+    def _find_matching_argdef(self, arg):
+        # Search non-positional argument definitions first
+        for arg_def in self.non_positional_arg_defs:
+            if arg_def.matches(arg):
+                return arg_def
+
+        # Search positional argument definitions last - these are a bit special
+        # since they need to be removed from the list once consumed
+        idx = 0
+        while idx < len(self.positional_arg_defs):
+            arg_def = self.positional_arg_defs[idx]
+
+            if arg_def.matches(arg):
+                self.positional_arg_defs.pop(idx)
+                return arg_def
+
+        return None
+
     def __call__(self, argv):
         # Scan arg_defs for potential help requests
         for arg in argv:
@@ -307,25 +335,24 @@ class CommandWrapper(object):
         # Build the kwargs dict
         kwargs = self._prepare_kwargs_dict()
 
+        print('Scanning arguments...')
+
         # Try to map arg_defs
         idx = 0
         while idx < len(argv):
             arg = argv[idx]
+            arg_def = self._find_matching_argdef(arg)
 
-            match_found = False
-            for arg_def in self.arg_defs:
-                # Check if the annotation matches this CLI argument
-                if arg_def.matches(arg):
-                    # Make sure we mark that we found a match for this argument
-                    match_found = True
-                    idx, value = arg_def.gather(argv, idx)
-
-                    # Map the value to the kwarg entry
-                    kwargs[arg_def.keyword] = value
-
-            # Unknown arg_defs get thrown back up at the user
-            if match_found is False:
+            if arg_def is None:
                 raise CommandError('Unknown argument: {}'.format(arg))
+
+            print('Argument def {} matches'.format(arg_def))
+
+            # Advance the index and capture the value of the argument
+            idx, value = arg_def.gather(argv, idx)
+
+            # Map the value to the kwarg entry
+            kwargs[arg_def.keyword] = value
 
             # Advance to the next argument
             idx += 1
