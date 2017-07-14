@@ -1,4 +1,4 @@
-from .errors import CommandArgumentError
+from cfw.framework.errors import CommandArgumentError
 
 
 class ArgumentDefinition(object):
@@ -49,9 +49,6 @@ class ArgumentDefinition(object):
 
         return matches
 
-    def gather(self, argv, idx):
-        raise NotImplementedError()
-
     def __str__(self):
         if self.name is not None:
             return self.name
@@ -59,12 +56,10 @@ class ArgumentDefinition(object):
 
 
 class Argument(ArgumentDefinition):
-    def gather(self, argv, idx):
-        idx += 1
-        return idx, argv[idx]
+    pass
 
 
-class PositionalArgument(ArgumentDefinition):
+class Positional(ArgumentDefinition):
     @property
     def positional(self):
         return True
@@ -76,21 +71,22 @@ class PositionalArgument(ArgumentDefinition):
     def matches(self, arg):
         return True
 
-    def gather(self, argv, idx):
-        return idx, argv[idx]
+
+class ListPositional(Positional):
+    pass
+
+
+class WildcardPositional(Positional):
+    pass
 
 
 class WildcardArgument(ArgumentDefinition):
-    def gather(self, argv, idx):
-        idx += 1
-        return len(argv), argv[idx:]
+    pass
 
 
 class ListArgument(ArgumentDefinition):
-    def gather(self, argv, idx):
-        raise NotImplementedError()
+    pass
 
 
 class Flag(ArgumentDefinition):
-    def gather(self, argv, idx):
-        return idx, True
+    pass

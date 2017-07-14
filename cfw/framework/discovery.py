@@ -2,9 +2,8 @@ import importlib
 import os
 import sys
 
-from .command import CommandWrapper, CommandTrie
-from .errors import CommandDependencyError, CommandError
-
+from cfw.framework.command import CommandWrapper, CommandTrie
+from cfw.framework.errors import CommandDependencyError, CommandError
 
 _PYTHON_SRC_CODE_EXT = '.py'
 _PYTHON_BYTE_CODE_EXT = '.pyc'

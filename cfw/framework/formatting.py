@@ -1,4 +1,4 @@
-from .util import GREEDY_WHITESPACE_RE
+from cfw.framework.util import GREEDY_WHITESPACE_RE
 
 # Formatting guides
 _FIRST_COLUMN_LEN = 30

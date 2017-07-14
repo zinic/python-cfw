@@ -1,14 +1,12 @@
-"""
-Command framework is a simple annotation-based CLI generation tool.
-"""
-
 import inspect
 import sys
 
-from .formatting import format_two_column_output, format_one_column_output
-from .arguments import Flag, PositionalArgument, Argument, ListArgument, WildcardArgument
-from .errors import CommandError, CommandArgumentError
-from .util import GREEDY_WHITESPACE_RE
+from collections import defaultdict
+
+from cfw.framework.args import *
+from cfw.framework.formatting import format_two_column_output, format_one_column_output
+from cfw.framework.errors import CommandError, CommandArgumentError
+from cfw.framework.util import GREEDY_WHITESPACE_RE
 
 _EXEC_OK = 'OK'
 _PRINT_HELP = 'PRINT_HELP'
@@ -35,18 +33,18 @@ class CommandTrie(object):
 
     def dispatch(self, argv=None):
         """
-        Attempts to dispatch to the correct command function given a set of arg_defs. If no arg_defs are
+        Attempts to dispatch to the correct command function given a set of argdefs. If no argdefs are
         specified then sys.argv is used instead.
 
         :param argv:
         :return: True if the command dispatched successfully, False otherwise.
         """
 
-        # If we weren't given any arg_defs simply assume the user wanted to operate on sys.argv
+        # If we weren't given any argdefs simply assume the user wanted to operate on sys.argv
         if argv is None:
             argv = sys.argv
 
-        # No arg_defs usually means the user is hunting for the help output, otherwise
+        # No argdefs usually means the user is hunting for the help output, otherwise
         # if the first argument is a help argument, print help as well.
         if len(argv) <= 1 or argv[1] in _HELP_ARGUMENTS:
             self.print_help()
@@ -203,18 +201,135 @@ class CommandNode(object):
         return 'CommandNode({})'.format(self.name)
 
 
+class ArgumentIterator(object):
+    def __init__(self, argv):
+        self._idx = 0
+        self._argv = argv
+
+    def finish(self):
+        self._idx = len(self._argv)
+
+    def advance(self, steps=1):
+        self._idx += steps
+
+    def get(self):
+        return self._argv[self._idx]
+
+    def get_rest(self):
+        return self._argv[self._idx:]
+
+    @property
+    def empty(self):
+        return self._idx >= len(self._argv)
+
+
+class ArgumentMapper(object):
+    def __init__(self, arg_defs):
+        # Track different argument types to make searching more deterministic
+        self.positionals = list()
+        self.non_positionals = list()
+
+        for argdef in arg_defs:
+            if argdef.positional is True:
+                self.positionals.append(argdef)
+            else:
+                self.non_positionals.append(argdef)
+
+    def _match_arg(self, arg):
+        # Search non-positional argument definitions first
+        for argdef in self.non_positionals:
+            if argdef.matches(arg):
+                return argdef
+        return None
+
+    def _prepare_kwargs(self):
+        kwargs = defaultdict(list)
+
+        # Map all flags first as False
+        for arg_def in self.arg_defs:
+            if arg_def.default is not None:
+                # Function argument defaults beat out our typing
+                kwargs[arg_def.keyword] = arg_def.default
+
+        return kwargs
+
+    def map_to_kwargs(self, argv):
+        arg_source = ArgumentIterator(argv)
+        kwargs = self._prepare_kwargs()
+
+        while arg_source.empty is False:
+            # Get the next argument
+            arg = arg_source.get()
+
+            # Try to match the arg against non-positional argdefs first
+            argdef = self._match_arg(arg)
+            if argdef is None:
+                # If there are no positional arguments remaining then this argument is unknown
+                if len(self.positional_arg_defs) == 0:
+                    raise CommandError('Unknown argument: {}'.format(arg))
+
+                # Select the first positional argument
+                argdef = self.positional_arg_defs[0]
+
+            # Attempt to gather up the value that's represented by the argument
+            if isinstance(argdef, Flag):
+                kwargs[argdef.keyword] = True
+                arg_source.advance()
+
+            elif isinstance(argdef, ListArgument):
+                arg_source.advance()
+                kwargs[argdef.keyword].append(arg_source.get())
+                arg_source.advance()
+
+            elif isinstance(argdef, WildcardArgument):
+                arg_source.advance()
+                kwargs[argdef.keyword].extend(arg_source.get_rest())
+                arg_source.finish()
+
+            elif isinstance(argdef, Argument):
+                arg_source.advance()
+                kwargs[argdef.keyword] = arg_source.get()
+                arg_source.advance()
+
+            elif isinstance(argdef, ListPositional):
+                # First remove this positional argdef from our list of positional arg defs
+                self.positional_arg_defs.pop(0)
+
+                # Continue consuming arguments until the next match or until we reach a point
+                # where other positional arguments expect to be filled in
+                while arg_source.empty is False:
+                    kwargs[argdef.keyword].append(arg_source.get())
+                    arg_source.advance()
+
+                    # If an argument definition matches then we're done with this list
+                    if self._find_matching_argdef(arg_source.get()) is not None:
+                        break
+
+            elif isinstance(argdef, WildcardPositional):
+                # First remove this positional argdef from our list of positional arg defs
+                self.positional_arg_defs.pop(0)
+
+                kwargs[argdef.keyword].extend(arg_source.get_rest())
+                arg_source.finish()
+
+            elif isinstance(argdef, Positional):
+                # First remove this positional argdef from our list of positional arg defs
+                self.positional_arg_defs.pop(0)
+
+                kwargs[argdef.keyword] = arg_source.get()
+                arg_source.advance()
+
+        return kwargs
+
+
 class CommandWrapper(object):
-    def __init__(self, func, name=None, path=None, help=None, arguments=None):
+    def __init__(self, func, name=None, path=None, help=None, argdefs=None):
         self.func = func
         self.name = name
         self.path = list()
         self.path_spec = path
         self.help = help
-        self.arg_defs = arguments
-
-        # Track different argument types to make searching more deterministic
-        self.positional_arg_defs = list()
-        self.non_positional_arg_defs = list()
+        self.argdefs = argdefs
 
         self._func_argspec = inspect.getfullargspec(self.func)
 
@@ -232,9 +347,9 @@ class CommandWrapper(object):
             # provided then use the docstring instead
             self.help = self.func.__doc__
 
-        if self.arg_defs is None:
-            # Make sure that self.arg_defs is never None
-            self.arg_defs = list()
+        if self.argdefs is None:
+            # Make sure that self.argdefs is never None
+            self.argdefs = list()
 
         # Process our definitions and do some sanity checks
         self._process_arg_defs()
@@ -250,7 +365,7 @@ class CommandWrapper(object):
             # If there is a set of defaults in the argspec, iterate through them in reverse
             arg_default_iter = reversed(self._func_argspec.defaults)
 
-        for arg_def in reversed(self.arg_defs):
+        for arg_def in reversed(self.argdefs):
             # Check the annotation for hygiene first
             if arg_def.short_form in _HELP_ARGUMENTS or arg_def.long_form in _HELP_ARGUMENTS:
                 raise CommandArgumentError('Arguments may not carry the signature of: {}'.format(_HELP_ARGUMENTS))
@@ -271,94 +386,37 @@ class CommandWrapper(object):
             if arg_def.has_default is False and isinstance(arg_def, Flag):
                 arg_def.set_default(False)
 
-            # Assign the arg def to the right place
-            if isinstance(arg_def, PositionalArgument):
-                self.positional_arg_defs.insert(0, arg_def)
-            else:
-                self.non_positional_arg_defs.insert(0, arg_def)
-
         # Run sanity checks now that the argument definitions have been filled out with the remainder of
         # important details
-        for arg_def in self.arg_defs:
+        for arg_def in self.argdefs:
             arg_def.check()
 
     def print_help(self):
         # If there aren't any args, tell the user
-        if len(self.arg_defs) == 0:
+        if len(self.argdefs) == 0:
             print('This command has no arguments specified.')
             return
 
         # Try to print out detailed argument help
         print('Arguments:')
-        for arg_def in self.arg_defs:
-            print(format_two_column_output(arg_def, arg_def.help))
-
-    def _prepare_kwargs_dict(self):
-        kwargs = dict()
-
-        # Map all flags first as False
-        for arg_def in self.arg_defs:
-            if arg_def.default is not None:
-                # Function argument defaults beat out our typing
-                kwargs[arg_def.keyword] = arg_def.default
-
-        return kwargs
+        for argdef in self.argdefs:
+            print(format_two_column_output(argdef, argdef.help))
 
     @property
     def depth(self):
         return len(self.path)
 
-    def _find_matching_argdef(self, arg):
-        # Search non-positional argument definitions first
-        for arg_def in self.non_positional_arg_defs:
-            if arg_def.matches(arg):
-                return arg_def
-
-        # Search positional argument definitions last - these are a bit special
-        # since they need to be removed from the list once consumed
-        idx = 0
-        while idx < len(self.positional_arg_defs):
-            arg_def = self.positional_arg_defs[idx]
-
-            if arg_def.matches(arg):
-                self.positional_arg_defs.pop(idx)
-                return arg_def
-
-        return None
-
     def __call__(self, argv):
-        # Scan arg_defs for potential help requests
+        # Scan argdefs for potential help requests
         for arg in argv:
             if arg in _HELP_ARGUMENTS:
                 return _PRINT_HELP
 
-        # Build the kwargs dict
-        kwargs = self._prepare_kwargs_dict()
-
-        print('Scanning arguments...')
-
-        # Try to map arg_defs
-        idx = 0
-        while idx < len(argv):
-            arg = argv[idx]
-            arg_def = self._find_matching_argdef(arg)
-
-            if arg_def is None:
-                raise CommandError('Unknown argument: {}'.format(arg))
-
-            print('Argument def {} matches'.format(arg_def))
-
-            # Advance the index and capture the value of the argument
-            idx, value = arg_def.gather(argv, idx)
-
-            # Map the value to the kwarg entry
-            kwargs[arg_def.keyword] = value
-
-            # Advance to the next argument
-            idx += 1
+        # Generate a kwargs dict
+        kwargs = ArgumentMapper(self.argdefs).map_to_kwargs(argv)
 
         # Last but not least, we test to make sure all required arguments are provided
-        for arg_def in self.arg_defs:
+        for arg_def in self.argdefs:
             if arg_def.has_default is True and kwargs.get(arg_def.keyword) is None:
                 print('Missing required argument: {}\n'.format(arg_def.short_form))
                 return _PRINT_HELP
