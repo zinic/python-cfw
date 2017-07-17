@@ -1,4 +1,5 @@
 import inspect
+import itertools
 import sys
 
 from collections import defaultdict
@@ -219,6 +220,10 @@ class ArgumentIterator(object):
         return self._argv[self._idx:]
 
     @property
+    def on_last(self):
+        return self._idx + 1 == len(self._argv)
+
+    @property
     def empty(self):
         return self._idx >= len(self._argv)
 
@@ -246,7 +251,7 @@ class ArgumentMapper(object):
         kwargs = defaultdict(list)
 
         # Map all flags first as False
-        for arg_def in self.arg_defs:
+        for arg_def in itertools.chain(self.positionals, self.non_positionals):
             if arg_def.default is not None:
                 # Function argument defaults beat out our typing
                 kwargs[arg_def.keyword] = arg_def.default
@@ -265,11 +270,11 @@ class ArgumentMapper(object):
             argdef = self._match_arg(arg)
             if argdef is None:
                 # If there are no positional arguments remaining then this argument is unknown
-                if len(self.positional_arg_defs) == 0:
+                if len(self.positionals) == 0:
                     raise CommandError('Unknown argument: {}'.format(arg))
 
                 # Select the first positional argument
-                argdef = self.positional_arg_defs[0]
+                argdef = self.positionals[0]
 
             # Attempt to gather up the value that's represented by the argument
             if isinstance(argdef, Flag):
@@ -293,28 +298,31 @@ class ArgumentMapper(object):
 
             elif isinstance(argdef, ListPositional):
                 # First remove this positional argdef from our list of positional arg defs
-                self.positional_arg_defs.pop(0)
+                self.positionals.pop(0)
+
+                # Add the arg as our value
+                kwargs[argdef.keyword].append(arg_source.get())
+                arg_source.advance()
 
                 # Continue consuming arguments until the next match or until we reach a point
                 # where other positional arguments expect to be filled in
-                while arg_source.empty is False:
-                    kwargs[argdef.keyword].append(arg_source.get())
-                    arg_source.advance()
-
+                while not arg_source.on_last and not arg_source.empty:
                     # If an argument definition matches then we're done with this list
-                    if self._find_matching_argdef(arg_source.get()) is not None:
+                    if self._match_arg(arg_source.get()) is not None:
                         break
+
+                    arg_source.advance()
 
             elif isinstance(argdef, WildcardPositional):
                 # First remove this positional argdef from our list of positional arg defs
-                self.positional_arg_defs.pop(0)
+                self.positionals.pop(0)
 
                 kwargs[argdef.keyword].extend(arg_source.get_rest())
                 arg_source.finish()
 
             elif isinstance(argdef, Positional):
                 # First remove this positional argdef from our list of positional arg defs
-                self.positional_arg_defs.pop(0)
+                self.positionals.pop(0)
 
                 kwargs[argdef.keyword] = arg_source.get()
                 arg_source.advance()
@@ -323,13 +331,13 @@ class ArgumentMapper(object):
 
 
 class CommandWrapper(object):
-    def __init__(self, func, name=None, path=None, help=None, argdefs=None):
+    def __init__(self, func, name=None, path=None, help=None, arguments=None):
         self.func = func
         self.name = name
         self.path = list()
         self.path_spec = path
         self.help = help
-        self.argdefs = argdefs
+        self.argdefs = arguments
 
         self._func_argspec = inspect.getfullargspec(self.func)
 
