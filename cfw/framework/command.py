@@ -147,13 +147,13 @@ class CommandNode(object):
         # Building an arg spec string is important for things like positional arguments where the order
         # of the argument determines where it is slotted in the target function
         cmd_arg_spec = ''
-        for arg_def in self.cmd.arg_defs:
-            if arg_def.positional is True:
+        for argdef in self.cmd.argdefs:
+            if argdef.positional is True:
                 # If this isn't the first positional arg added to the cmd_arg_spec then we need as space
                 if len(cmd_arg_spec) > 0:
                     cmd_arg_spec += ' '
 
-                cmd_arg_spec += '<{}>'.format(arg_def.name)
+                cmd_arg_spec += '<{}>'.format(argdef.name)
 
         # If there were positional arguments we need to append the cmd_arg_spec to the cmd_spec for output
         if len(cmd_arg_spec) > 0:
