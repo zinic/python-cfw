@@ -71,37 +71,40 @@ def scan(cli_call_name, module, package, verbose, help):
     if _is_relative(target_module):
         target_module = package
 
-    # Search path changes if the __file__ entry is a python file and not a directory
+    # Search path changes if the __file__ entry is a python init file and not a directory
     search_path = root_path
-    if _file_extension(search_path) in _PYTHON_EXTENSIONS:
+    if search_path.endswith(_PYTHON_MODULE_INIT_FILE):
         search_path = os.path.dirname(root_path)
 
     # First identify all submodules
     submodule_names = list()
-    for filename in os.listdir(search_path):
-        if filename in _IGNORE_LIST:
-            continue
 
-        abs_path = os.path.join(search_path, filename)
-        init_path = os.path.join(abs_path, _PYTHON_MODULE_INIT_FILE)
+    # If our search path is not a directory, move on
+    if os.path.isdir(search_path):
+        for filename in os.listdir(search_path):
+            if filename in _IGNORE_LIST:
+                continue
 
-        module_name = ''
-        if os.path.isdir(abs_path) and os.path.exists(init_path):
-            # Figure out if we're dealing with a directory that has the init file
-            module_name = '.'.join((target_module, filename,))
-        elif _is_python_src_file(filename):
-            # Is it a python source file that's stand-alone?
-            file_module_name = os.path.splitext(filename)[0]
-            module_name = '.'.join((target_module, file_module_name,))
-        else:
-            # I don't like this continue but avoiding the print statement twice is a nice consequence
-            continue
+            abs_path = os.path.join(search_path, filename)
+            init_path = os.path.join(abs_path, _PYTHON_MODULE_INIT_FILE)
 
-        if verbose:
-            print('Adding module {} to the scan list.'.format(module_name))
+            module_name = ''
+            if os.path.isdir(abs_path) and os.path.exists(init_path):
+                # Figure out if we're dealing with a directory that has the init file
+                module_name = '.'.join((target_module, filename,))
+            elif _is_python_src_file(filename):
+                # Is it a python source file that's stand-alone?
+                file_module_name = os.path.splitext(filename)[0]
+                module_name = '.'.join((target_module, file_module_name,))
+            else:
+                # I don't like this continue but avoiding the print statement twice is a nice consequence
+                continue
 
-        # Add the module to our scan and import list
-        submodule_names.append(module_name)
+            if verbose:
+                print('Adding module {} to the scan list.'.format(module_name))
+
+            # Add the module to our scan and import list
+            submodule_names.append(module_name)
 
     # Load the modules
     submodules = [importlib.import_module(n) for n in submodule_names]
