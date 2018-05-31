@@ -6,18 +6,21 @@ root
   |- test
        |- second
 """
+from typing import Optional
 
 import cfw
 
 
 # Function and definition for the first command
-@cfw.command(arguments=[
-    cfw.Flag('-v', '--verbose', help='Run with more output.'),
-    cfw.Argument('-r', '--default', help='This is a default argument.'),
-    cfw.Positional(name='positional_arg', help='This is a required positional argument.'),
-    cfw.Argument('-o', '--optional', help='This is an optional argument.')
-])
-def first(verbose, required, positional, optional=None):
+@cfw.command(
+    arguments=[
+        cfw.Flag("-v", "--verbose", help="Run with more output."),
+        cfw.Argument("-r", "--default", help="This is a default argument."),
+        cfw.Positional(name="positional_arg", help="This is a required positional argument."),
+        cfw.Argument("-o", "--optional", help="This is an optional argument."),
+    ]
+)
+def first(verbose: bool, required: str, positional: str, optional: Optional[str] = None) -> None:
     """
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec auctor turpis a ligula sollicitudin pellentesque.
     Maecenas quis feugiat neque. Vestibulum eu sem id augue iaculis elementum eu vel dolor. Suspendisse aliquet orci
@@ -28,7 +31,7 @@ def first(verbose, required, positional, optional=None):
     Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Mauris porttitor nunc
     a pellentesque semper.
     """
-    print('{} {}'.format(verbose, required))
+    print("{} {}".format(verbose, required))
 
 
 # Help output may be placed in the command definition if you wish to be explicit or rely on docstrings
@@ -37,20 +40,20 @@ def first(verbose, required, positional, optional=None):
 # By specifying a path for this command we're explicitly telling CFW that this is part of a nested command structure
 # and that this command belongs with the descendants of the test command. If there is no corresponding test command
 # defined elsewhere, then CFW will create a simple stub that handles dispatch and collates documentation for you.
-@cfw.command(path='test', help='A nested command that lets you test nested paths.')
-def second():
+@cfw.command(path="test", help="A nested command that lets you test nested paths.")
+def second() -> None:
     pass
 
 
 # Testcase for deeply nested commands that expect their path to be simple command aggregators
-@cfw.command(path='command path')
-def nested():
+@cfw.command(path="command path")
+def nested() -> None:
     pass
 
 
-def main():
-    cfw.dispatch('cfw.testapp', help='This is a test CLI for CFW')
+def main() -> None:
+    cfw.dispatch("cfw.testapp", help="This is a test CLI for CFW")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

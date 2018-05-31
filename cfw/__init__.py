@@ -5,5 +5,12 @@ import cfw.framework.errors as errors
 from cfw.framework.discovery import command, dispatch
 
 # Import argument specific framework elements into our toplevel scope
-from cfw.framework.args import Argument, WildcardArgument, ListArgument, Flag, Positional, ListPositional, \
-    WildcardPositional
+from cfw.framework.args import (
+    Argument,
+    WildcardArgument,
+    ListArgument,
+    Flag,
+    Positional,
+    ListPositional,
+    WildcardPositional,
+)

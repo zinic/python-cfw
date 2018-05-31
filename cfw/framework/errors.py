@@ -1,10 +1,10 @@
 class CommandError(Exception):
-    def __init__(self, msg=''):
-        super(CommandError, self).__init__()
 
+    def __init__(self, msg: str = "") -> None:
+        super(CommandError, self).__init__()
         self.msg = msg
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.msg
 
 
@@ -17,5 +17,6 @@ class CommandNotFoundError(CommandError):
 
 
 class CommandDependencyError(CommandError):
-    def __str__(self):
-        return 'Command Dependency Error: {}'.format(self.msg)
+
+    def __str__(self) -> str:
+        return "Command Dependency Error: {}".format(self.msg)

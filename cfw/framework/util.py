@@ -1,3 +1,3 @@
 import re
 
-GREEDY_WHITESPACE_RE = re.compile('[ ]+')
+GREEDY_WHITESPACE_RE = re.compile("[ ]+")
