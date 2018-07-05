@@ -2,7 +2,7 @@ import inspect
 import itertools
 import sys
 from collections import defaultdict
-from typing import Optional, List, Any, Dict, Tuple, Callable, Iterator
+from typing import Optional, List, Any, Dict, Tuple, Callable, Iterator, TypeVar
 
 from cfw.framework.args import *
 from cfw.framework.args.model import ArgumentDefinition
@@ -18,12 +18,14 @@ _PRIVATE_NAME_PREFIX = "__"
 _HELP_ARGUMENTS = ("-h", "-?", "--help")
 _LAST_DEFAULT_ITR_VALUE = "LAST_DEFAULT_ITER"
 
+UserFuncType = TypeVar("UserFuncType", bound=Callable[..., Any])
+
 
 class CommandWrapper(object):
 
     def __init__(
         self,
-        func: Callable,
+        func: UserFuncType,
         name: Optional[str] = None,
         path: Optional[str] = None,
         help: Optional[str] = None,

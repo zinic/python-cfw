@@ -1,10 +1,11 @@
 import importlib
 import os
 import sys
-from typing import Callable, List, Any, Optional
+import traceback
+from typing import Callable, List, Any, Optional, TypeVar
 
 from cfw.framework.args.model import ArgumentDefinition
-from cfw.framework.command import CommandWrapper, CommandTrie
+from cfw.framework.command import CommandWrapper, CommandTrie, UserFuncType
 from cfw.framework.errors import CommandDependencyError, CommandError
 
 _PYTHON_SRC_CODE_EXT = ".py"
@@ -13,6 +14,8 @@ _PRIVATE_NAME_PREFIX = "__"
 _IGNORE_LIST = ("__pycache__", "__init__.py")
 _PYTHON_EXTENSIONS = (_PYTHON_SRC_CODE_EXT, _PYTHON_BYTE_CODE_EXT)
 _PYTHON_MODULE_INIT_FILE = "__init__.py"
+
+WrappedFuncType = TypeVar("WrappedFuncType", bound=Callable[[UserFuncType], CommandWrapper])
 
 
 def _is_python_src_file(filename: str) -> bool:
@@ -33,7 +36,7 @@ def command(
     path: Optional[str] = None,
     help: Optional[str] = None,
     arguments: Optional[List[ArgumentDefinition]] = None,
-) -> Callable[[Callable], CommandWrapper]:
+) -> WrappedFuncType:
     """
     Just a marker annotation for code documentation for now. Might work to auto-pull in
     command line functions but that's for later.
@@ -41,7 +44,7 @@ def command(
     :return:
     """
 
-    def _factory(target_func: Callable) -> CommandWrapper:
+    def _factory(target_func: UserFuncType) -> CommandWrapper:
         return CommandWrapper(target_func, name, path, help, arguments)
 
     return _factory
@@ -53,6 +56,7 @@ def dispatch(
     argv: Optional[List[Any]] = None,
     verbose: bool = False,
     help: Optional[str] = None,
+    handle_exceptions: bool = False
 ) -> None:
     if _is_relative(module) is True and package is None:
         raise CommandError(
@@ -63,7 +67,18 @@ def dispatch(
         argv = sys.argv
 
     trie = scan(argv[0], module, package, verbose, help)
-    trie.dispatch(argv)
+
+    try:
+        trie.dispatch(argv)
+    except (Exception, KeyboardInterrupt) as ex:
+        if not handle_exceptions:
+            raise
+
+        if not isinstance(ex, KeyboardInterrupt):
+            traceback.print_exc()
+
+        sys.exit(1)
+
 
 
 def scan(
